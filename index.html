@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Inteligente Dami - Modo Fútbol</title>
+
+  <!-- Librería cliente para el protocolo MQTT -->
+  <script src="paho.javascript-1.0.3/paho-mqtt-min.js"></script>
+  
+  <!-- Manejo modularizado de errores -->
+  <script type="module" src="libclienteweb/manejaErrores.js"></script>
+
+  <style>
+    body {
+      background-color: #f3f0f7; 
+      color: #312e81; 
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    #formulario {
+      background-color: #ffffff; 
+      width: 100%;
+      max-width: 600px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.1), 0 8px 10px -6px rgba(139, 92, 246, 0.1);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border: 1px solid #e9e3f3;
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 800; 
+      margin: 0 0 8px 0;
+      color: #7c3aed; 
+      text-align: center; 
+      border-bottom: 2px solid #f3f0f7;
+      padding-bottom: 12px;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .field-alias {
+      flex: 1;
+    }
+
+    .field-mensaje {
+      flex: 2.5;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6d28d9; 
+    }
+
+    input {
+      background-color: #ffffff;
+      border: 1px solid #ddd6fe; 
+      border-radius: 8px;
+      color: #1e1b4b;
+      padding: 10px 14px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: #a78bfa; 
+      box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+    }
+
+    button {
+      background-color: #8b5cf6; 
+      color: #ffffff; 
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      align-self: flex-end;
+      height: 38px;
+    }
+
+    button:hover {
+      background-color: #7c3aed; 
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    #pre {
+      background-color: #faf9fe; 
+      border: 1px solid #ddd6fe;
+      border-radius: 12px;
+      padding: 16px;
+      height: 300px;
+      overflow-y: auto;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 12px 0 0 0;
+      color: #4c1d95; 
+
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='%237c3aed' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' opacity='0.08'><circle cx='50' cy='50' r='6' fill='%237c3aed'/><path d='M44,50 C25,30 15,35 20,50 C15,65 25,70 44,50 Z' fill='%237c3aed'/><path d='M56,50 C75,30 85,35 80,50 C85,65 75,70 56,50 Z' fill='%237c3aed'/><path d='M46,55 L35,75 M54,55 L65,75'/></svg>");
+      background-repeat: no-repeat;
+      background-position: center bottom 15px; 
+      background-size: 140px 140px; 
+    }
+
+    #pre::-webkit-scrollbar {
+      width: 6px;
+    }
+    #pre::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #pre::-webkit-scrollbar-thumb {
+      background: #ddd6fe;
+      border-radius: 4px;
+    }
+    #pre::-webkit-scrollbar-thumb:hover {
+      background: #c084fc;
+    }
+
+    .nota-obligatorio {
+      font-size: 11px;
+      color: #a78bfa;
+      margin: -8px 0 0 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <form id="formulario">
+    <h1>Chat Inteligente Dami</h1>
+
+    <div class="input-group">
+      <p class="field-alias" style="margin:0;">
+        <label>
+          Alias *
+          <input id="inputAlias" required placeholder="Tu apodo...">
+        </label>
+      </p>
+
+      <p class="field-mensaje" style="margin:0;">
+        <label>
+          Mensaje *
+          <input id="inputMensaje" required placeholder="Escribe tu pregunta">
+        </label>
+      </p>
+
+      <button type="submit">Enviar</button>
+    </div>
+
+    <p class="nota-obligatorio">* Campos obligatorios</p>
+    <pre id="pre">Conectando&hellip;</pre>
+  </form>
+
+  <script type="module">
+    // --- REFERENCIAS DE LA INTERFAZ DE USUARIO ---
+    const formulario = document.getElementById("formulario");
+    const inputAlias = document.getElementById("inputAlias");
+    const inputMensaje = document.getElementById("inputMensaje");
+    const pre = document.getElementById("pre");
+
+    let moduloDisponible = true;
+    let clientId = "gilpgawoasChat-Invitado";
+    let enviaMensajeMqtt, falloEnLaConexionMqtt, conexionMqttPerdida;
+
+    try {
+      const creaId = await import("./libclienteweb/creaIdCliente.js");
+      const fallo = await import("./libclienteweb/falloEnLaConexionMqtt.js");
+      const perdida = await import("./libclienteweb/conexionMqttPerdida.js");
+      const envia = await import("./libclienteweb/enviaMensajeMqtt.js");
+      
+      clientId = creaId.creaIdCliente("gilpgawoasChat-");
+      falloEnLaConexionMqtt = fallo.falloEnLaConexionMqtt;
+      conexionMqttPerdida = perdida.conexionMqttPerdida;
+      enviaMensajeMqtt = envia.enviaMensajeMqtt;
+    } catch (e) {
+      console.warn("Módulos locales bloqueados o no encontrados. Usando modo de simulación local.");
+      moduloDisponible = false;
+    }
+
+    const TOPICO_CHAT = "gilpgawoas/chat";
+    let conectadoMqtt = false;
+    
+    const cliente = new Paho.MQTT.Client("broker.hivemq.com", 443, clientId);
+
+    formulario.addEventListener("submit", submit);
+
+    async function submit(event) {
+      event.preventDefault();
+      const nombre = inputAlias.value.trim();
+      const texto = inputMensaje.value.trim();
+      const mensajeCompleto = `${nombre}: ${texto}`;
+      
+      if (pre.textContent.startsWith("Conectando") || pre.textContent.startsWith("Conectado") || pre.textContent.startsWith("Modo Local")) {
+        pre.textContent = "";
+      }
+
+      pre.textContent += mensajeCompleto + "\n";
+      pre.scrollTop = pre.scrollHeight;
+
+      if (conectadoMqtt && moduloDisponible) {
+        try {
+          enviaMensajeMqtt(cliente, mensajeCompleto, TOPICO_CHAT);
+        } catch (err) {
+          console.error("Error al enviar por MQTT:", err);
+        }
+      }
+
+      // --- PROCESAMIENTO SEMÁNTICO (BÚSQUEDA DINÁMICA CON EXTRACTO COMPLETO) ---
+      const textoMinusculas = texto.toLowerCase(); // <-- Corregido aquí de 'text' a 'texto'
+      let respuestaBot = "";
+
+      const terminosFutbol = [
+        "futbol", "fútbol", "partido", "torneo", "liga", "jugador", "mundial", "copa",
+        "gol", "goleador", "goleadores", "balon", "balón", "mexico", "méxico", "champions",
+        "arbitro", "árbitro", "estadio", "equipo", "club", "fichaje", "penalti", "penal"
+      ];
+
+      const esPreguntaFutbolera = terminosFutbol.some(termino => textoMinusculas.includes(termino));
+
+      if (esPreguntaFutbolera) {
+        
+        pre.textContent += "Dami (Bot): Buscando datos en la red...\n";
+        pre.scrollTop = pre.scrollHeight;
+
+        try {
+          // PASO 1: Buscar el artículo más relevante para obtener su título exacto
+          const urlBuscar = `https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(texto)}&format=json&origin=*`;
+          const resBuscar = await fetch(urlBuscar);
+          const datosBuscar = await resBuscar.json();
+
+          if (datosBuscar.query && datosBuscar.query.search.length > 0) {
+            const tituloArticulo = datosBuscar.query.search[0].title;
+
+            // PASO 2: Pedir el extracto completo de la introducción (hasta 450 caracteres para mayor contexto)
+            const urlExtracto = `https://es.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exchars=450&titles=${encodeURIComponent(tituloArticulo)}&format=json&origin=*`;
+            const resExtracto = await fetch(urlExtracto);
+            const datosExtracto = await resExtracto.json();
+            
+            const paginas = datosExtracto.query.pages;
+            const idPagina = Object.keys(paginas)[0];
+            
+            if (idPagina !== "-1" && paginas[idPagina].extract) {
+              respuestaBot = `${paginas[idPagina].extract} (Fuente externa sincronizada)`;
+            } else {
+              let fragmento = datosBuscar.query.search[0].snippet.replace(/<\/?[^>]+(>|$)/g, "");
+              respuestaBot = `${fragmento} (Fuente externa sincronizada)`;
+            }
+          } else {
+            respuestaBot = "No logré localizar datos específicos sobre ese término futbolístico en la red.";
+          }
+        } catch (error) {
+          console.error("Error en la llamada a la API:", error);
+          respuestaBot = "Hubo un inconveniente al conectar con los servidores de búsqueda.";
+        }
+
+      } else {
+        respuestaBot = "Lo siento, como la IA Dami, solo tengo permitido hablar sobre fútbol. ¡Hazme una pregunta de fútbol!";
+      }
+
+      // Despacho del mensaje final a la interfaz
+      const mensajeBotCompleto = `Dami (Bot): ${respuestaBot}`;
+      pre.textContent += mensajeBotCompleto + "\n";
+      pre.scrollTop = pre.scrollHeight;
+
+      // Envío de la respuesta definitiva a través del protocolo MQTT
+      if (conectadoMqtt && moduloDisponible) {
+        try {
+          enviaMensajeMqtt(cliente, mensajeBotCompleto, TOPICO_CHAT);
+        } catch (err) {
+          console.error("Error al enviar respuesta del bot por MQTT:", err);
+        }
+      }
+
+      // Limpieza del control input
+      inputMensaje.value = ""; 
+      inputMensaje.focus();
+    }
+
+    // --- MANEJO DE MENSAJES ENTRANTES DESDE EL BROKER ---
+    cliente.onMessageArrived = mensaje => {
+      if (mensaje.destinationName === TOPICO_CHAT) {
+        const msgRecibido = mensaje.payloadString;
+        
+        if (!msgRecibido.startsWith(`${inputAlias.value.trim()}:`) && !msgRecibido.startsWith("Dami (Bot):")) {
+          if (pre.textContent.startsWith("Conectando") || pre.textContent.startsWith("Conectado") || pre.textContent.startsWith("Modo Local")) {
+            pre.textContent = "";
+          }
+          pre.textContent += msgRecibido + "\n";
+          pre.scrollTop = pre.scrollHeight;
+        }
+      }
+    };
+
+    // --- INICIALIZACIÓN DE LA CONEXIÓN MQTT ---
+    if (moduloDisponible) {
+      cliente.onConnectionLost = conexionMqttPerdida;
+
+      cliente.connect({
+        keepAliveInterval: 10,
+        useSSL: true, 
+        onFailure: (err) => {
+          conectadoMqtt = false;
+          if (falloEnLaConexionMqtt) falloEnLaConexionMqtt(err);
+          pre.textContent = "Modo Local (Servidor no disponible, pero puedes escribir).\n\n";
+        },
+        onSuccess: () => {
+          conectadoMqtt = true;
+          console.log("Conectado con éxito a MQTT.");
+          pre.textContent = "Conectado al servidor de chat.\n\n";
+          cliente.subscribe(TOPICO_CHAT);
+        },
+      });
+    } else {
+      pre.textContent = "Conectado.\nEscribe una pregunta y presiona Enviar.\n\n";
+    }
+  </script>
+
+</body>
+</html>

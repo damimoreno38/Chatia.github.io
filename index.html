@@ -181,7 +181,7 @@
   </form>
 
   <script type="module">
-    // --- REFERENCIAS DE LA INTERFAZ DE USUARIO ---
+    
     const formulario = document.getElementById("formulario");
     const inputAlias = document.getElementById("inputAlias");
     const inputMensaje = document.getElementById("inputMensaje");
@@ -234,7 +234,7 @@
         }
       }
 
-      // --- PROCESAMIENTO SEMÁNTICO (BÚSQUEDA DINÁMICA CON EXTRACTO COMPLETO) ---
+     
       const textoMinusculas = texto.toLowerCase(); // <-- Corregido aquí de 'text' a 'texto'
       let respuestaBot = "";
 
@@ -252,7 +252,7 @@
         pre.scrollTop = pre.scrollHeight;
 
         try {
-          // PASO 1: Buscar el artículo más relevante para obtener su título exacto
+        
           const urlBuscar = `https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(texto)}&format=json&origin=*`;
           const resBuscar = await fetch(urlBuscar);
           const datosBuscar = await resBuscar.json();
@@ -260,7 +260,7 @@
           if (datosBuscar.query && datosBuscar.query.search.length > 0) {
             const tituloArticulo = datosBuscar.query.search[0].title;
 
-            // PASO 2: Pedir el extracto completo de la introducción (hasta 450 caracteres para mayor contexto)
+            
             const urlExtracto = `https://es.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exchars=450&titles=${encodeURIComponent(tituloArticulo)}&format=json&origin=*`;
             const resExtracto = await fetch(urlExtracto);
             const datosExtracto = await resExtracto.json();
@@ -286,12 +286,12 @@
         respuestaBot = "Lo siento, como la IA Dami, solo tengo permitido hablar sobre fútbol. ¡Hazme una pregunta de fútbol!";
       }
 
-      // Despacho del mensaje final a la interfaz
+     
       const mensajeBotCompleto = `Dami (Bot): ${respuestaBot}`;
       pre.textContent += mensajeBotCompleto + "\n";
       pre.scrollTop = pre.scrollHeight;
 
-      // Envío de la respuesta definitiva a través del protocolo MQTT
+     
       if (conectadoMqtt && moduloDisponible) {
         try {
           enviaMensajeMqtt(cliente, mensajeBotCompleto, TOPICO_CHAT);
@@ -300,12 +300,12 @@
         }
       }
 
-      // Limpieza del control input
+      
       inputMensaje.value = ""; 
       inputMensaje.focus();
     }
 
-    // --- MANEJO DE MENSAJES ENTRANTES DESDE EL BROKER ---
+   
     cliente.onMessageArrived = mensaje => {
       if (mensaje.destinationName === TOPICO_CHAT) {
         const msgRecibido = mensaje.payloadString;
@@ -320,7 +320,7 @@
       }
     };
 
-    // --- INICIALIZACIÓN DE LA CONEXIÓN MQTT ---
+   
     if (moduloDisponible) {
       cliente.onConnectionLost = conexionMqttPerdida;
 
